@@ -81,6 +81,14 @@ sdk/tools/pack-module.sh
 `build-module.sh` makes `build-brick/<id>/`, what Deadcast installs. `pack-module.sh` makes the tarball for its
 release. The toolchain needs `docker pull ghcr.io/loveretro/tg5040-toolchain:latest` first.
 
+## Getting listed
+
+1. Open a pull request adding your repository to Deadcast's `store/registry.txt`.
+2. Publish a GitHub release with the tarball attached. Tag it with the version in `module.cfg`, and raise that
+   version for every release.
+
+The store's list picks up your latest release within about an hour.
+
 ## Licences
 
 GPL-2.0 (`LICENSE`); `THIRD_PARTY_NOTICES.md` lists what it builds on.
