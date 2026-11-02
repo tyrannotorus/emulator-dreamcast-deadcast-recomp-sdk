@@ -1,0 +1,3 @@
+[submodule "ui"]
+	path = ui
+	url = https://github.com/tyrannotorus/emulator-dead-ui-system.git
