@@ -35,7 +35,8 @@ LIBCHDR="$(find "$PWD/$H" -name 'libchdr.so*' -type f | head -n 1)"
 # (game/extracted: the game's own code, never in git)
 DC_PORT="$MODULE" DCDISC_LIBCHDR="$LIBCHDR" python3 "$SDK/tools/dc.py" setup --disc "$DISC"
 
-# the module, for the handheld; pkg-config sees the sysroot's packages only, never this machine's
+# the module, for the handheld; pkg-config sees the sysroot's packages only, never this machine's, and no path
+# of this machine goes into the binary
 SYSROOT="$TC/aarch64-nextui-linux-gnu/libc"
 export PKG_CONFIG_LIBDIR="$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/share/pkgconfig"
 export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
@@ -45,7 +46,9 @@ mkdir -p build-brick/include
 rm -rf build-brick/include/curl build-brick/include/vulkan build-brick/include/vk_video
 cp -r /usr/include/curl /usr/include/vulkan /usr/include/vk_video build-brick/include/
 cmake -S "$SDK" -B "$B" -G Ninja \
-    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -ffile-prefix-map=$MODULE=. -ffile-prefix-map=$SDK=sdk" \
+    -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -ffile-prefix-map=$MODULE=. -ffile-prefix-map=$SDK=sdk" \
+    -DCMAKE_SKIP_RPATH=ON \
     -DCMAKE_TOOLCHAIN_FILE="$SDK/ui/toolchain/tg5040.cmake" \
     -DTG5040_ROOT="$TC" \
     -DCMAKE_BUILD_TYPE=Release \
