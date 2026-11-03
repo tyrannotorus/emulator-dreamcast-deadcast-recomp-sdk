@@ -37,13 +37,16 @@ name = My Game
 title = My Game           what the menu calls it
 version = 1.0.0
 exec = mygame             the executable, beside the manifest
+host = 1                  the format Deadcast hosts it in; without this it is not run
+needs = 1.2.0             the oldest Deadcast it runs under
 disc = 0123abcd...        each disc it plays: the SHA-1 its CHD's header records (one line each)
 setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
 ```
 
-The port layer applies `scale` and `rumble` (0-100) itself, live. Any other setting a module reads from the store,
-`deadui::recomp::get("<id>.<key>")`. **Show FPS** is always the first row of Recomp Options, undeclared.
+Deadcast shows them in Recomp Options and keeps the values, and hands every value to the module as it starts, as
+`--set <key>=<value>`, a port layer setting (`dreamcomp::settings()`). The port layer applies `scale` and `rumble` (0-100)
+itself, live. **Show FPS** is always the first row of Recomp Options, undeclared.
 
 ### store.json
 
@@ -72,8 +75,8 @@ From the module's repository, with your own disc:
 
 ```
 git submodule update --init --recursive
-sdk/ui/toolchain/toolchain.sh
-sdk/ui/toolchain/devlibs.sh <adb serial>
+sdk/tools/toolchain/toolchain.sh
+sdk/tools/toolchain/devlibs.sh <adb serial>
 sdk/tools/build-module.sh /path/to/your/disc.chd
 sdk/tools/pack-module.sh
 ```

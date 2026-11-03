@@ -2183,6 +2183,15 @@ int main(int argc, char** argv) {
                             static_cast<unsigned long long>(sys.spg.frames()));
                 while (ext_paused()) {
                     for (auto* e : dream::host::extensions()) e->on_paused_tick();
+                    bool released = false;
+                    for (auto* e : dream::host::extensions())
+                        released = released || e->screen_released();
+                    if (released) {
+                        if (!live->poll_input())
+                            throw StopRun{"the window was closed"};
+                        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                        continue;
+                    }
                     if (live->last_stream && !live->last_stream->empty()) {
                         const dream::pvr::RenderWords words = live->last_stream;
                         live->render(words);

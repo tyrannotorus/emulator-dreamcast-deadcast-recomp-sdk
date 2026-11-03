@@ -31,7 +31,6 @@
 
 
 #ifdef DREAMCOMP_NEXTUI
-#include "recomp.h"
 #endif
 
 #if __has_include("dream/render/vk/present.h") && defined(DREAM_WITH_RENDERER)
@@ -231,16 +230,18 @@ public:
         const bool bare = args.size() == 1;
         const std::string id = port_id();
 #ifdef DREAMCOMP_NEXTUI
-        // Run by Deadcast as a recomp module (ui/src/recomp.h): `<module> <disc>`, played in its
-        // window; the module's files (settings, memory card, caches) in Deadcast's folder, under
-        // recomp-data/<id>/.
+        // Hosted by Deadcast: `<module> <disc> [--set key=value ...]`, played in its window; the
+        // module's files (settings, memory card, caches) in Deadcast's folder, under recomp-data/<id>/.
         std::string disc;
-        if (args.size() == 2 && args[1].rfind("--", 0) != 0) {
+        if (args.size() >= 2 && args[1].rfind("--", 0) != 0) {
             disc = args[1];
-            args.pop_back();
+            args.erase(args.begin() + 1);
         }
+        const char* home = std::getenv("DEADCAST_HOME");
         const std::filesystem::path config_dir =
-            std::filesystem::path(deadui::recomp::home()) / "recomp-data" / id;
+            home != nullptr && *home != '\0'
+                ? std::filesystem::path(home) / "recomp-data" / id
+                : default_config_dir(g_port && g_port->folder ? g_port->folder : id);
         const bool play = bare || !disc.empty();
 #else
         const std::filesystem::path config_dir =
@@ -253,13 +254,6 @@ public:
         if (file.empty())
             file = config_dir / "settings.ini";
         g_settings.load(file);
-#ifdef DREAMCOMP_NEXTUI
-        // What Deadcast's Recomp Options keeps for the module, else its manifest's default
-        deadui::recomp::Module self;
-        if (deadui::recomp::readManifest((exe_dir(args[0]) / "module.cfg").string(), self))
-            for (const deadui::recomp::Setting& setting : self.settings)
-                g_settings.set(setting.key, deadui::recomp::get(id + "." + setting.key, setting.def));
-#endif
 
         if (!has_flag(args, "--config")) {
             // A packaged port keeps its config next to the executable; a build tree one level up.
