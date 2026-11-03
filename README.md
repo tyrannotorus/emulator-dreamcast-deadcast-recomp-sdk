@@ -45,7 +45,7 @@ setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
 ```
 
-Deadcast shows them in Options, with Core on the module, and keeps the values, and hands every value to the module as it starts, as
+Deadcast shows them in Options, with Core on the module, keeps the values in the module's own `recomp-data/<id>/settings.cfg`, and hands every value to the module as it starts, as
 `--set <key>=<value>`, a port layer setting (`dreamcomp::settings()`). The port layer applies `scale` and `rumble` (0-100)
 itself, live. **Show FPS** is always the first row there, undeclared.
 
