@@ -199,7 +199,7 @@ private:
         std::fflush(stdout);
         if (fps_ && !paused_) {
             char text[32];
-            std::snprintf(text, sizeof text, "F:%4.1f", shown);
+            std::snprintf(text, sizeof text, "%4.1f", shown);
             corner(text);
         } else if (!fps_ && cornerShown_) {
             corner(nullptr);
