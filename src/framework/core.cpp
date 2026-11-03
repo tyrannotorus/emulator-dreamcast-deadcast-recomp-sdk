@@ -1,7 +1,7 @@
 // The core launcher extension: settings, bare-launch defaults, widescreen and
 // presentation. Linked into every port executable (cmake/Port.cmake).
 //
-// Flags it adds (`--help` lists them under "rez"):
+// Flags it adds (`--help` lists them under "port"):
 //   --widescreen / --no-widescreen   override the saved setting for this run
 //   --fit letterbox|crop|stretch     how the picture fills the window
 //   --set KEY=VALUE                  override any setting for this run
@@ -51,6 +51,10 @@ namespace {
 
 const PortInfo* g_port = nullptr;
 Settings g_settings;
+// The port's id, for its log lines and its extension's name
+const char* port_id() {
+    return g_port && g_port->id ? g_port->id : "port";
+}
 // The highest render scale and the default; a settings file asking for more is held to it.
 #if defined(DREAMCOMP_NEXTUI)
 // A NextUI handheld (the Brick: a 1024x768 panel, a PowerVR GE8300): the Dreamcast's own 640x480
@@ -146,7 +150,7 @@ void add_input_and_mod_flags(std::vector<std::string>& args,
         const auto dir = config_dir / "mods" / name;
         std::error_code ec;
         if (!std::filesystem::is_directory(dir, ec)) {
-            std::fprintf(stderr, "rez: mod %s: no folder %s\n", name.c_str(),
+            std::fprintf(stderr, "%s: mod %s: no folder %s\n", port_id(), name.c_str(),
                          dir.string().c_str());
             continue;
         }
@@ -221,11 +225,11 @@ float expanded_target(float window_aspect) {
 
 class Core final : public dream::host::Extension {
 public:
-    const char* name() const override { return "rez"; }
+    const char* name() const override { return port_id(); }
 
     void adjust_args(std::vector<std::string>& args) override {
         const bool bare = args.size() == 1;
-        const std::string id = g_port && g_port->id ? g_port->id : "rez";
+        const std::string id = port_id();
 #ifdef DREAMCOMP_NEXTUI
         // Run by Deadcast as a recomp module (ui/src/recomp.h): `<module> <disc>`, played in its
         // window; the module's files (settings, memory card, caches) in Deadcast's folder, under
@@ -439,7 +443,7 @@ public:
 
     void usage(std::FILE* out) override {
         std::fprintf(out,
-                     "\nrez:\n"
+                     "\nport:\n"
                      "  --aspect W:H           4:3 (original), 16:9, 21:9 or 32:9: a wider view, not\n"
                      "                         a stretch (ports with widescreen support), fixed for\n"
                      "                         this run (clamped to the port's maximum); `expanded`\n"
@@ -470,7 +474,7 @@ public:
         apply_presentation();
         if (g_port && g_port->on_start)
             g_port->on_start(sys, g_settings);
-        std::printf("rez: %s, settings %s%s\n", g_port && g_port->title ? g_port->title : "?",
+        std::printf("%s: %s, settings %s%s\n", port_id(), g_port && g_port->title ? g_port->title : "?",
                     g_settings.file().string().c_str(),
                     expanded_aspect() ? ", aspect expanded" : ", aspect original");
     }
@@ -562,13 +566,13 @@ public:
         hud_user_overrides_.items.clear();
         std::string err;
         if (!hud_port_file_.empty() && !hud_port_overrides_.load(hud_port_file_, &err))
-            std::fprintf(stderr, "rez: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", port_id(), err.c_str());
         err.clear();
         if (!hud_user_file_.empty() && !hud_user_overrides_.load(hud_user_file_, &err))
-            std::fprintf(stderr, "rez: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", port_id(), err.c_str());
         rebuild_hud_overrides();
         if (!hud_overrides_.items.empty())
-            std::printf("rez: HUD overrides: %zu from the port, %zu from the player\n",
+            std::printf("%s: HUD overrides: %zu from the port, %zu from the player\n", port_id(),
                         hud_port_overrides_.items.size(), hud_user_overrides_.items.size());
     }
     void rebuild_hud_overrides() {
@@ -679,10 +683,10 @@ public:
             hud_unsaved_ = false;
             hud_status_ = "saved " + std::to_string(hud_user_overrides_.items.size()) +
                           " override(s)";
-            std::printf("rez: HUD overrides saved to %s\n", hud_user_file_.string().c_str());
+            std::printf("%s: HUD overrides saved to %s\n", port_id(), hud_user_file_.string().c_str());
         } else {
             hud_status_ = "save failed: " + err;
-            std::fprintf(stderr, "rez: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", port_id(), err.c_str());
         }
     }
 
@@ -749,7 +753,7 @@ void set_render_scale(int scale) {
         hc.set_render_scale(static_cast<unsigned>(scale));
     int w = 0, h = 0;
     render_size(scale, w, h);
-    std::printf("rez: drawing at %dx%d from the next frame\n", w, h);
+    std::printf("%s: drawing at %dx%d from the next frame\n", port_id(), w, h);
 }
 
 void render_size(int scale, int& w, int& h) {

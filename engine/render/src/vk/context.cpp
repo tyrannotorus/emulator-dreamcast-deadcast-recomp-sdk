@@ -25,7 +25,7 @@ Context::~Context() {
 bool Context::create(const std::vector<const char*>& surface_extensions) {
     VkApplicationInfo app{};
     app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app.pApplicationName = "Rez Recompiled";
+    app.pApplicationName = "Dreamcast recomp";
     app.apiVersion = VK_API_VERSION_1_1;
 
     std::uint32_t count = 0;

@@ -870,7 +870,7 @@ public:
         from_renderer = described && fb.enabled && rendered_into(fb.address) && !await_render;
         // --hold-until-render: the guest's framebuffer decoded from video memory is not shown before
         // the renderer's first picture (5 s at most): at a game's start it can hold textures already
-        // uploaded there, shown as a picture for a frame or two (Rez on the Brick, 2026-10-31).
+        // uploaded there, shown as a picture for a frame or two (seen on the Brick, 2026-10-31).
         const auto now = std::chrono::steady_clock::now();
         if (held_since.time_since_epoch().count() == 0)
             held_since = now;
@@ -2027,7 +2027,7 @@ int main(int argc, char** argv) {
         // The window names the title being run. The config is the only place that name is written
         // down for a human, and a config without one still gets a window with a name on it.
         if (!live->start(
-                scale, cfg.title.empty() ? std::string("Rez Recompiled") : cfg.title,
+                scale, cfg.title.empty() ? std::string("Dreamcast recomp") : cfg.title,
                 render_aspect, fullscreen)) {
             std::fprintf(stderr, "window: %s\n", live->error.c_str());
             return 2;
@@ -2485,7 +2485,7 @@ int main(int argc, char** argv) {
 // stdout is unbuffered, so what was printed before a crash is in the log after it. On Windows an
 // unhandled exception on any thread prints what, where (module and offset, for the map file) and on
 // which thread, and writes a minidump beside the bindings file
-// (%APPDATA%/rez_recompiled/crash-<time>.dmp) for a debugger.
+// (%APPDATA%/<the port's folder>/crash-<time>.dmp) for a debugger.
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX

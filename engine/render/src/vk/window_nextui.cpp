@@ -436,7 +436,7 @@ bool Window::end_frame(std::uint32_t image_index) {
         // The render pass's own dependency should order its colour writes before this copy, but the
         // Brick's PowerVR driver does not keep it: the first frame drawn through the frame image after
         // fast-path frames reached the screen with the image's earlier contents (garbage at first,
-        // the last menu after; a menu opening over Rez at 1024x768). An explicit barrier does.
+        // the last menu after; a menu opening over a game at 1024x768). An explicit barrier does.
         VkImageMemoryBarrier b{};
         b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         b.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;

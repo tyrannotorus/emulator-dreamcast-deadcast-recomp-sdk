@@ -78,7 +78,7 @@ struct LineEdge {
 };
 
 // A batch of wide lines: a parameter of the type the PowerVR reserves (6), kind 1,
-// written by the Rez port's line renderer in place of one sprite a line. Lines [first, first +
+// written by a port's native line renderer in place of one sprite a line. Lines [first, first +
 // count) of Frame::line_edges, each widened by `half_width` into a quad as that renderer widened
 // each into a sprite, with the sprite header's colours; drawn as one instanced draw.
 struct LineBatch {

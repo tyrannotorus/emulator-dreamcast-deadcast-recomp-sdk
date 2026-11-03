@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup, build and run Rez from the repository root.
+"""Setup, build and run a port from its repository root.
 
     python tools/dc.py doctor                  what this machine has / lacks
     python tools/dc.py deps                    fetch SDL3 into .deps/ (Windows: VC devel zip)
@@ -9,8 +9,8 @@
     python tools/dc.py run [--window] [-- launcher args...]
 
 Builds go to build/. On Windows every compiler call runs inside the Visual Studio developer
-environment, found with vswhere. The remembered disc path lives in .rez_recompiled/local.json
-(git-ignored).
+environment, found with vswhere. The remembered disc path lives in .dreamcomp/local.json
+(the folder ignores itself in git).
 """
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def port_info() -> dict:
     if len(tomls) != 1:
         sys.exit(f"{port}: expected exactly one game/<id>.toml, found {len(tomls)}")
     gid = os.path.splitext(os.path.basename(tomls[0]))[0]
-    local_path = os.path.join(port, ".rez_recompiled", "local.json")
+    local_path = os.path.join(port, ".dreamcomp", "local.json")
     local = json.load(open(local_path)) if os.path.exists(local_path) else {}
     exe_candidates = glob.glob(os.path.join(port, "build", "game", f"*{EXE}"))
     exe = next((e for e in exe_candidates if os.path.isfile(e) and
@@ -101,7 +101,11 @@ def port_info() -> dict:
 
 
 def save_local(info: dict) -> None:
-    os.makedirs(os.path.dirname(info["local_path"]), exist_ok=True)
+    folder = os.path.dirname(info["local_path"])
+    os.makedirs(folder, exist_ok=True)
+    # It names a path on this machine: never to be committed, whatever the port's .gitignore says.
+    with open(os.path.join(folder, ".gitignore"), "w") as f:
+        f.write("*\n")
     with open(info["local_path"], "w") as f:
         json.dump(info["local"], f, indent=2)
 
@@ -188,11 +192,11 @@ def cmd_setup(a) -> int:
         try:
             header = read_header(disc)
         except (ChdError, OSError) as e:
-            sys.exit(f"{disc} is not a supported image ({e}). Rez runs only from:\n{names}")
+            sys.exit(f"{disc} is not a supported image ({e}). This game runs only from:\n{names}")
         got_chd = header.sha1.hex()
         match = next((n or s for s, n in accepted if s == got_chd), None)
         if match is None:
-            sys.exit(f"{disc} is not a supported image (CHD SHA-1 {got_chd}). Rez runs only from:\n{names}")
+            sys.exit(f"{disc} is not a supported image (CHD SHA-1 {got_chd}). This game runs only from:\n{names}")
         print(f"disc: {match}; checking the whole image against its header ...")
         if data_sha1(disc) != header.raw_sha1:
             sys.exit(f"{disc}: the data does not match its header's checksum; the file is damaged")

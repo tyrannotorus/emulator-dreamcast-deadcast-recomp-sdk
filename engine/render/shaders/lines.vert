@@ -1,5 +1,5 @@
 // Wide lines: a line batch (display_list.h, LineBatch) drawn as one instanced draw, an instance a
-// line. Each line becomes the sprite quad Rez's line renderer (0x8C0ACF7E) builds: offset across
+// line. Each line becomes the sprite quad the game's own line renderer builds: offset across
 // the line by the half width, on the side where the direction's y is not negative, with corners in
 // the decoder's sprite order (D, C, A, B) as a triangle strip. The rest is as geometry.vert.
 #version 450
@@ -33,7 +33,7 @@ vec4 clip_position(vec3 p) {
 }
 
 void main() {
-    // As 0x8C0ACF7E: f6 = dx, f5 = dy, scaled by the half width over the length (FSRRA), both
+    // As the game's renderer: f6 = dx, f5 = dy, scaled by the half width over the length (FSRRA), both
     // negated when f5 comes out negative.
     float f6 = in_b.x - in_a.x;
     float f5 = in_b.y - in_a.y;

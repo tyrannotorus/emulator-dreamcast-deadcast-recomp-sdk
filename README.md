@@ -32,12 +32,12 @@ Ignore `build-brick/` and `game/extracted/`.
 ### module.cfg
 
 ```
-id = rez                  unique; the folder it installs in
-name = Rez
-title = Rez Recompiled    what the menu calls it
-version = 1.0.3
-exec = rez                the executable, beside the manifest
-disc = 9711a0d0...        each disc it plays: the SHA-1 its CHD's header records (one line each)
+id = mygame               unique; the folder it installs in
+name = My Game
+title = My Game           what the menu calls it
+version = 1.0.0
+exec = mygame             the executable, beside the manifest
+disc = 0123abcd...        each disc it plays: the SHA-1 its CHD's header records (one line each)
 setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
 ```

@@ -885,7 +885,7 @@ void Window::destroy() {
 // SDL layer rather than beside the binding model: the model stays free of SDL. Used when no
 // --bindings is given (the port layer passes one beside its settings).
 std::string default_bindings_path() {
-    char* dir = SDL_GetPrefPath("", "rez_recompiled");
+    char* dir = SDL_GetPrefPath("", "dreamcomp");
     if (!dir)
         return {};
     std::string path = std::string(dir) + "bindings.txt";

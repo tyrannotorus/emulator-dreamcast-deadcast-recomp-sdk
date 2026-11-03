@@ -3,8 +3,8 @@
 //
 //     static const dreamcomp::PortInfo kInfo = [] {
 //         dreamcomp::PortInfo p;
-//         p.id = "rez";
-//         p.title = "Rez";
+//         p.id = "mygame";
+//         p.title = "My Game";
 //         p.widescreen = &apply_widescreen;
 //         return p;
 //     }();
@@ -24,7 +24,7 @@ namespace dreamcomp {
 class Settings;
 
 struct PortInfo {
-    const char* id = nullptr;     // names its config and pipeline list, e.g. "rez" (rez.toml)
+    const char* id = nullptr;     // names its config and pipeline list, e.g. "mygame" (mygame.toml)
     // The per-user folder under the platform's config directory: settings, memory card,
     // bindings, pipeline cache, mods and textures. Null: `id`.
     const char* folder = nullptr;

@@ -168,7 +168,7 @@ Bindings Bindings::defaults() {
 
 std::string Bindings::to_text() const {
     std::ostringstream o;
-    o << "# Rez Recompiled input bindings. Rewritten whenever they change in the UI.\n"
+    o << "# Input bindings. Rewritten whenever they change in the UI.\n"
       << "# Physical inputs are SDL's own names, so this file survives an SDL upgrade.\n"
       << "version = 1\n"
       << "deadzone = " << deadzone_percent << "\n"
