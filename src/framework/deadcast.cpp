@@ -264,8 +264,11 @@ private:
         h.disc = disc_;
         h.emulatorSettings = options::file();
         h.recompSetting = [this](const std::string& key, const std::string& value) {
+            auto& hc = dream::host::host_controls();
             if (key == "scale")
                 set_render_scale(value == "panel" ? kScalePanel : std::atoi(value.c_str()));
+            else if (key == "rumble" && hc.set_rumble)
+                hc.set_rumble(static_cast<float>(std::atoi(value.c_str())) / 100.0f);
             else if (key == "fps")
                 fps_ = value == "on";  // shown from the next second
         };

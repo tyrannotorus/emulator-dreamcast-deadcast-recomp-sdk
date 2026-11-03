@@ -250,8 +250,11 @@ public:
             file = config_dir / "settings.ini";
         g_settings.load(file);
 #ifdef DREAMCOMP_NEXTUI
-        // What Deadcast's Recomp Options keeps for the module, as its manifest declares
-        g_settings.set("scale", deadui::recomp::get(id + ".scale", g_settings.get("scale", "1")));
+        // What Deadcast's Recomp Options keeps for the module, else its manifest's default
+        deadui::recomp::Module self;
+        if (deadui::recomp::readManifest((exe_dir(args[0]) / "module.cfg").string(), self))
+            for (const deadui::recomp::Setting& setting : self.settings)
+                g_settings.set(setting.key, deadui::recomp::get(id + "." + setting.key, setting.def));
 #endif
 
         if (!has_flag(args, "--config")) {

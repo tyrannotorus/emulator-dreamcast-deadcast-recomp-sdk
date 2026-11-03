@@ -38,11 +38,11 @@ title = Rez Recompiled    what the menu calls it
 version = 1.0.3
 exec = rez                the executable, beside the manifest
 disc = 9711a0d0...        each disc it plays: the SHA-1 its CHD's header records (one line each)
-setting = scale | Resolution | 1=640x480, panel=1024x768 | 1
+setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
 ```
 
-The port layer applies `scale` itself, live. Any other setting a module reads from the store,
+The port layer applies `scale` and `rumble` (0-100) itself, live. Any other setting a module reads from the store,
 `deadui::recomp::get("<id>.<key>")`. **Show FPS** is always the first row of Recomp Options, undeclared.
 
 ### store.json
