@@ -1,13 +1,15 @@
-// A recomp module's link to the emulator that hosts it. The host owns the MENU button, the menu, Recomp Options
+// A recomp module's link to the emulator that hosts it. The host owns the MENU button, the menu, Options
 // and the store; the module plays the game and does as it is told. Two pipes, DEADUI_HOST=<read fd>,<write fd>,
 // lines of text:
 //   from the host: pause, resume, set <key> <value>, quit
 //   to the host:   ready (the first vblank), paused (nothing more of this process reaches the screen)
 // Paused, the guest is held at its vblank (clock, sound and game logic stopped) and nothing is drawn: the screen
 // is the host's until resume. Run without a host, the game simply plays, with no menu.
+#include "dream/render/input.h"
 #include "dream/runtime/host_ext.h"
 #include "dream/runtime/system.h"
 #include "dreamcomp/port.h"
+#include "dreamcomp/settings.h"
 
 #include <atomic>
 #include <chrono>
@@ -27,6 +29,8 @@ namespace {
 
 // frames with nothing new presented before the screen counts as handed over
 constexpr int kStableTicks = 4;
+// a setting naming a control of the game: control.<its file key>
+const std::string kControl = "control.";
 
 class HostLink final : public dream::host::Extension {
 public:
@@ -53,6 +57,7 @@ public:
         perf();
         if (!ready_) {
             ready_ = true;
+            controlsAtStart();
             say("ready");
         }
         commands();
@@ -149,6 +154,25 @@ private:
             fps_ = value == "on";
         else if (key == "label")
             readCells(value);
+        else if (key.rfind(kControl, 0) == 0)
+            control(key.substr(kControl.size()), value);
+    }
+
+    // a control of the game on the pad's inputs: the SDK's default until told otherwise
+    static void control(const std::string& key, const std::string& inputs) {
+        auto& hc = dream::host::host_controls();
+        if (!hc.set_pad_control || !hc.set_pad_control(key, inputs))
+            std::printf("host link: control %s cannot be on \"%s\": it stays as it was\n", key.c_str(), inputs.c_str());
+    }
+
+    static void controlsAtStart() {
+        for (unsigned i = 0; i < dream::render::kPadControlCount; ++i) {
+            const std::string key = dream::render::pad_control_key(static_cast<dream::render::PadControl>(i));
+            const std::string inputs = settings().get(kControl + key);
+            if (!inputs.empty())
+                control(key, inputs);
+        }
+        std::fflush(stdout);
     }
 
     static void quit() {

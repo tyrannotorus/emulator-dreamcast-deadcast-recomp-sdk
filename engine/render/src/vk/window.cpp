@@ -410,6 +410,10 @@ void Window::refresh_devices() {
     }
 }
 
+bool Window::set_pad_control(std::string_view, std::string_view) {
+    return false;  // here a player's controls are Bindings
+}
+
 void Window::set_bindings(const Bindings& b) {
     bindings_ = b;
     // Names to codes once, here. Doing it per frame would mean a string lookup per control per

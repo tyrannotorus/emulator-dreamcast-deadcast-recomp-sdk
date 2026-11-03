@@ -162,6 +162,11 @@ public:
     void set_bindings(const Bindings& b);
     const Bindings& bindings() const noexcept { return bindings_; }
 
+    // The Brick's pad: which of its inputs drive a control of the game, by the control's file key
+    // (pad_control_key) and the inputs' names as labelled ("A", "L2", "UP"), comma separated, or
+    // NONE. False for an unknown key or name, changing nothing.
+    bool set_pad_control(std::string_view key, std::string_view inputs);
+
     // Players: player 0 is the keyboard plus the first pad; pad N drives player N,
     // in connection order. The one-argument forms are player 0.
     static constexpr unsigned kMaxPlayers = 4;
@@ -273,6 +278,7 @@ private:
     int input_fd_ = -1;
     std::uint32_t input_buttons_ = 0;  // bit per evdev button code from BTN_SOUTH
     int input_hat_x_ = 0, input_hat_y_ = 0, input_l2_ = 0, input_r2_ = 0;
+    std::uint32_t pad_inputs_[kPadControlCount]{};  // per control: the pad's inputs driving it, a bit each
     // The handheld's vibration motor (NextUI builds): on until rumble_until_ (poll()
     // stops it), at rumble_uv_ microvolts; written to the device only when they change.
     bool rumble_on_ = false;

@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -101,6 +102,8 @@ struct HostControls {
     std::function<void()> quit;                  // end the run, as closing the window does
     std::function<void()> open_bindings;         // the controller binding screen (F1)
     std::function<void(float)> set_rumble;       // 0..1
+    // the pad's inputs driving a control of the game (Window::set_pad_control); false if unknown
+    std::function<bool(std::string_view, std::string_view)> set_pad_control;
     std::function<void(bool)> set_fullscreen;
     std::function<bool()> fullscreen;
     std::function<void(float)> set_volume;       // 0..1, master output level

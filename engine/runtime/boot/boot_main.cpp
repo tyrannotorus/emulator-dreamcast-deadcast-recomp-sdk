@@ -2071,6 +2071,9 @@ int main(int argc, char** argv) {
                 lp->want_scale = sc == dream::host::HostControls::kScalePanel ? sc : std::clamp(sc, 1u, 8u);
             };
             hc.set_rumble = [lp](float v) { lp->window.rumble_scale = std::clamp(v, 0.0f, 1.0f); };
+            hc.set_pad_control = [lp](std::string_view key, std::string_view inputs) {
+                return lp->window.set_pad_control(key, inputs);
+            };
             hc.presented_frames = [lp] { return lp->presented.load(); };
             hc.set_corner = [lp](const std::uint32_t* bgra, unsigned w, unsigned h) {
                 lp->window.set_corner(bgra, w, h);

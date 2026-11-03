@@ -10,6 +10,8 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <iterator>
+#include <string_view>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -39,6 +41,40 @@ int open_pad() {
 
 bool button(std::uint32_t bits, int code) {
     return code >= BTN_SOUTH && code < BTN_SOUTH + 32 && (bits >> (code - BTN_SOUTH) & 1u);
+}
+
+// The pad's inputs, by the labels on the device: what a control can be bound to. MENU is not one: it
+// belongs to whatever hosts the game.
+enum : std::uint32_t {
+    kInA = 1u << 0, kInB = 1u << 1, kInX = 1u << 2, kInY = 1u << 3,
+    kInL1 = 1u << 4, kInR1 = 1u << 5, kInL2 = 1u << 6, kInR2 = 1u << 7,
+    kInSelect = 1u << 8, kInStart = 1u << 9, kInFn1 = 1u << 10, kInFn2 = 1u << 11,
+    kInUp = 1u << 12, kInDown = 1u << 13, kInLeft = 1u << 14, kInRight = 1u << 15,
+};
+struct PadInput {
+    std::string_view name;
+    std::uint32_t bit;
+};
+constexpr PadInput kPadInputs[] = {
+    {"A", kInA}, {"B", kInB}, {"X", kInX}, {"Y", kInY}, {"L1", kInL1}, {"R1", kInR1}, {"L2", kInL2}, {"R2", kInR2},
+    {"SELECT", kInSelect}, {"START", kInStart}, {"FN1", kInFn1}, {"FN2", kInFn2},
+    {"UP", kInUp}, {"DOWN", kInDown}, {"LEFT", kInLeft}, {"RIGHT", kInRight},
+};
+
+// The default layout: by the labels on the device, L1/L2 and R1/R2 the triggers, the stick unbound.
+void default_pad_controls(std::uint32_t (&inputs)[kPadControlCount]) {
+    const auto set = [&inputs](PadControl c, std::uint32_t bits) { inputs[static_cast<unsigned>(c)] = bits; };
+    set(PadControl::A, kInA);
+    set(PadControl::B, kInB);
+    set(PadControl::X, kInX);
+    set(PadControl::Y, kInY);
+    set(PadControl::Start, kInStart);
+    set(PadControl::Up, kInUp);
+    set(PadControl::Down, kInDown);
+    set(PadControl::Left, kInLeft);
+    set(PadControl::Right, kInRight);
+    set(PadControl::LeftTrigger, kInL1 | kInL2);
+    set(PadControl::RightTrigger, kInR1 | kInR2);
 }
 
 // The vibration motor, as NextUI's tg5040 PLAT_setRumble drives it: strength as the driver's
@@ -119,6 +155,7 @@ bool Window::create(const char* title, int width, int height) {
     write_int(kRumblePower, 0);
     rumble_found_uv_ = read_int(kRumbleVoltage);
     set_bindings(Bindings::defaults());
+    default_pad_controls(pad_inputs_);
     return create_swapchain();
 }
 
@@ -264,7 +301,26 @@ void Window::refresh_devices() {
 }
 
 void Window::set_bindings(const Bindings& b) {
-    bindings_ = b;  // kept for the launcher; the pad's layout here is fixed (poll())
+    bindings_ = b;  // kept for the launcher; the pad's layout here is set_pad_control's
+}
+
+bool Window::set_pad_control(std::string_view key, std::string_view inputs) {
+    PadControl control;
+    if (!pad_control_from_key(key, control))
+        return false;
+    std::uint32_t bits = 0;
+    while (inputs != "NONE" && !inputs.empty()) {
+        const std::size_t comma = inputs.find(',');
+        const std::string_view name = inputs.substr(0, comma);
+        inputs = comma == std::string_view::npos ? std::string_view{} : inputs.substr(comma + 1);
+        const PadInput* input = std::find_if(std::begin(kPadInputs), std::end(kPadInputs),
+                                             [name](const PadInput& in) { return in.name == name; });
+        if (input == std::end(kPadInputs))
+            return false;
+        bits |= input->bit;
+    }
+    pad_inputs_[static_cast<unsigned>(control)] = bits;
+    return true;
 }
 
 void Window::begin_capture() noexcept {}
@@ -305,19 +361,23 @@ bool Window::poll() {
     // The motor's time up, or the game no longer getting the pad (a menu over it, the run ending).
     if (rumble_on_ && (!running_ || game_input_blocked_ || std::chrono::steady_clock::now() >= rumble_until_))
         rumble_off();
-    // The game's pad, by the labels on the device; L1/L2 and R1/R2 the triggers.
-    const bool on[kPadControlCount] = {
-        button(input_buttons_, BTN_EAST),  button(input_buttons_, BTN_SOUTH), button(input_buttons_, BTN_WEST),
-        button(input_buttons_, BTN_NORTH), button(input_buttons_, BTN_START), input_hat_y_ < 0,
-        input_hat_y_ > 0,                  input_hat_x_ < 0,                  input_hat_x_ > 0,
-        button(input_buttons_, BTN_TL) || input_l2_ > 0,
-        button(input_buttons_, BTN_TR) || input_r2_ > 0,
-        false, false, false, false};
+    // The game's pad: each control held while any of the inputs driving it is.
+    const auto in = [](bool down, std::uint32_t bit) { return down ? bit : 0u; };
+    const std::uint32_t held =
+        in(button(input_buttons_, BTN_EAST), kInA) | in(button(input_buttons_, BTN_SOUTH), kInB) |
+        in(button(input_buttons_, BTN_WEST), kInX) | in(button(input_buttons_, BTN_NORTH), kInY) |
+        in(button(input_buttons_, BTN_TL), kInL1) | in(button(input_buttons_, BTN_TR), kInR1) |
+        in(input_l2_ > 0, kInL2) | in(input_r2_ > 0, kInR2) |
+        in(button(input_buttons_, BTN_SELECT), kInSelect) | in(button(input_buttons_, BTN_START), kInStart) |
+        in(button(input_buttons_, BTN_THUMBL), kInFn1) | in(button(input_buttons_, BTN_THUMBR), kInFn2) |
+        in(input_hat_y_ < 0, kInUp) | in(input_hat_y_ > 0, kInDown) |
+        in(input_hat_x_ < 0, kInLeft) | in(input_hat_x_ > 0, kInRight);
     for (unsigned i = 0; i < kPadControlCount; ++i) {
+        const bool on = (pad_inputs_[i] & held) != 0;
         const bool was = pad_held_[0][i];
-        pad_held_[0][i] = on[i];
-        pad_pressed_[0][i] = on[i] && !was;
-        pad_value_[0][i] = on[i] ? 1.0f : 0.0f;
+        pad_held_[0][i] = on;
+        pad_pressed_[0][i] = on && !was;
+        pad_value_[0][i] = on ? 1.0f : 0.0f;
     }
     return running_;
 }
@@ -490,7 +550,7 @@ void Window::destroy() {
 }
 
 std::string default_bindings_path() {
-    return {};  // the pad's layout is fixed on the device
+    return {};  // the pad's layout comes from whatever hosts the game (set_pad_control)
 }
 
 }  // namespace dream::render::vk

@@ -8,7 +8,7 @@ released as a tarball.
 ## What every module follows
 
 1. **No in-game settings or menu changes.** The game's own menus stay as the original has them. Whatever a module
-   lets the player choose is a setting declared in its manifest, shown in Recomp Options.
+   lets the player choose is a setting declared in its manifest, shown in Options.
 2. **A module, not a replacement.** Deadcast stays running and hosts the module as a child process. MENU, the menu, Recomp
    Options and the Recomp Store are Deadcast's. The module is the game: it draws, plays sound, and pauses, resumes and quits
    when told to, through the port layer (`src/framework/host_link.cpp`).
@@ -45,9 +45,34 @@ setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
 ```
 
-Deadcast shows them in Recomp Options and keeps the values, and hands every value to the module as it starts, as
+Deadcast shows them in Options, with Core on the module, and keeps the values, and hands every value to the module as it starts, as
 `--set <key>=<value>`, a port layer setting (`dreamcomp::settings()`). The port layer applies `scale` and `rumble` (0-100)
-itself, live. **Show FPS** is always the first row of Recomp Options, undeclared.
+itself, live. **Show FPS** is always the first row there, undeclared.
+
+### Buttons
+
+The port layer plays the game on this layout, with nothing declared:
+
+| Control | Key | Default |
+|---|---|---|
+| D-pad | `dpad_up`, `dpad_down`, `dpad_left`, `dpad_right` | `UP`, `DOWN`, `LEFT`, `RIGHT` |
+| A, B, X, Y | `a`, `b`, `x`, `y` | `A`, `B`, `X`, `Y` |
+| Start | `start` | `START` |
+| L, R triggers | `ltrigger`, `rtrigger` | `L1,L2` and `R1,R2` |
+| Stick | `stick_up`, `stick_down`, `stick_left`, `stick_right` | none |
+
+To let the player remap them, declare each control they may change in `module.cfg`, with its default:
+
+```
+control = a | A Button | A      key | name | the pad's inputs, comma separated, or NONE
+```
+
+Options then has a **Controls** page for the module, drawn by Deadcast, as the emulator's is: A waits for a press, X
+clears, and a press taken leaves any other declared control that had it. The inputs are `A B X Y L1 R1 L2 R2 SELECT START
+FN1 FN2 UP DOWN LEFT RIGHT`, by the labels on the device. MENU is Deadcast's and cannot be bound, and Deadcast's menu keeps
+its own buttons whatever the game's are. A control not declared stays on its default, and a module that declares none has
+no page. The values reach the module like its settings, as `control.<key>`, and apply at once. They are the module's alone:
+nothing comes from the emulator's Controls, and its defaults differ (there, the Dreamcast's A is the button labelled B).
 
 ### store.json
 
