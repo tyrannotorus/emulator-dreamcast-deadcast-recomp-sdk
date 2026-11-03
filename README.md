@@ -91,7 +91,8 @@ release. The toolchain needs `docker pull ghcr.io/loveretro/tg5040-toolchain:lat
 2. Publish a GitHub release with the tarball attached. Tag it with the version in `module.cfg`, and raise that
    version for every release.
 
-The store's list picks up your latest release within about an hour.
+The store's list picks up your latest release the next time it is rebuilt: on a schedule of an hour, which GitHub does not
+guarantee, so it can take longer.
 
 ## Licences
 
