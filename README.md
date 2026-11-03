@@ -38,8 +38,7 @@ name = My Game
 title = My Game           what the menu calls it
 version = 1.0.0
 exec = mygame             the executable, beside the manifest
-host = 1                  the format Deadcast hosts it in; without this it is not run
-needs = 1.2.0             the oldest Deadcast it runs under
+needs = 1.2.0             the oldest Deadcast it runs under: the store offers it to no older one
 disc = 0123abcd...        each disc it plays: the SHA-1 its CHD's header records (one line each)
 setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
                           each setting: key | name | value=label, ... | default
@@ -90,10 +89,13 @@ Every key is optional. The changelog is for the version in `module.cfg`, and `fo
 
 ## How Deadcast runs a module
 
-Installed modules are in `<DEADCAST_HOME>/recomp/<id>/`. When a game's core is a module, Deadcast's first act is to
-`exec` it, `<exec> <disc>`, so the emulator never starts. A module keeps its files (settings, memory card, caches)
-in `<DEADCAST_HOME>/recomp-data/<id>/`, and nothing outside those two folders: deleting it removes both. Exit code
-86 starts the game again in the core now chosen.
+Installed modules are in `<DEADCAST_HOME>/recomp/<id>/`. When a game's core is a module, Deadcast starts it as
+`<exec> <disc>` and sleeps while it plays, so the emulator never starts. A module keeps its files (settings, memory
+card, caches) in `<DEADCAST_HOME>/recomp-data/<id>/`, and nothing outside those two folders: deleting it removes both.
+
+Any error of a module's ends its run: it cannot start, it crashes, it exits with anything but 0, or it does not answer
+`pause`. Deadcast shows the error with one button, `A TRY EMULATOR CORE`. The game's core becomes the emulator and the
+game starts again in it. The player can switch back in Options, and update or delete the module in the Recomp Store.
 
 ## Building a module
 
