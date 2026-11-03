@@ -9,8 +9,8 @@ released as a tarball.
 
 1. **No in-game settings or menu changes.** The game's own menus stay as the original has them. Whatever a module
    lets the player choose is a setting declared in its manifest, shown in Options.
-2. **A module, not a replacement.** Deadcast stays running and hosts the module as a child process. MENU, the menu, Recomp
-   Options and the Recomp Store are Deadcast's. The module is the game: it draws, plays sound, and pauses, resumes and quits
+2. **A module, not a replacement.** Deadcast stays running and hosts the module as a child process. MENU, the menu, Options
+   and the Recomp Store are Deadcast's. The module is the game: it draws, plays sound, and pauses, resumes and quits
    when told to, through the port layer (`src/framework/host_link.cpp`).
 3. **No game data in git.** No disc images, nothing extracted from them and no translated code.
 4. **The disc is checked.** The manifest lists every disc the module plays, by the SHA-1 its CHD's header records.
