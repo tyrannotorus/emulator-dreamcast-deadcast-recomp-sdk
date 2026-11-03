@@ -42,9 +42,9 @@ public:
     // Blocks until the frame last queued for `slot` has been shown, so its fence and image can be
     // used again.
     void wait_slot(std::uint32_t slot);
-    // A small BGRA picture (a frame counter, at most kCornerWidth x kCornerHeight) copied over the
-    // bottom-left corner of every frame blitted from now on, or none (null). The pixels are copied.
-    static constexpr std::uint32_t kCornerWidth = 512, kCornerHeight = 128;
+    // A small BGRA picture (a frame counter) over the bottom-left corner of every frame from now on, or none (null).
+    // Its kCornerBox pixels are left out: only the text is written, into the page, and the game shows around it.
+    static constexpr std::uint32_t kCornerBox = 0x202020;
     void set_corner(const std::uint32_t* bgra, std::uint32_t width, std::uint32_t height);
 
 private:

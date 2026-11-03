@@ -266,7 +266,7 @@ private:
         cornerShown_ = true;
     }
 
-    static constexpr std::uint32_t kCornerBox = 0x202020;  // as the host's label
+    static constexpr std::uint32_t kCornerBox = 0x202020;  // the box in the host's characters, left out on the screen
 
     struct Cell {
         std::uint32_t width = 0;

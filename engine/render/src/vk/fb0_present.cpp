@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -17,6 +18,7 @@
 #include <deque>
 #include <mutex>
 #include <thread>
+#include <vector>
 #endif
 
 namespace dream::render::vk {
@@ -60,45 +62,24 @@ struct Fb0Presenter::State {
     std::uint64_t busy_slots = 0;  // bit per slot with a frame not yet shown
     bool stop = false;
 
-    // set_corner's picture (under `mutex`), and per page a host-visible copy of it that the page's
-    // blit reads (a page's last frame is shown before the page is written again)
-    VkPhysicalDevice physical = VK_NULL_HANDLE;
-    std::vector<std::uint32_t> corner;
-    std::uint32_t corner_w = 0, corner_h = 0;
-    VkBuffer corner_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory corner_memory = VK_NULL_HANDLE;
-    std::uint8_t* corner_mapped = nullptr;
+    // set_corner's picture as runs of its text pixels (under `mutex`), written straight into a frame's page once
+    // it is drawn: fb0 mapped for this
+    struct CornerRun {
+        std::size_t offset;  // in a page, in bytes
+        std::uint32_t source, count;
+    };
+    std::vector<std::uint32_t> corner_pixels;
+    std::vector<CornerRun> corner_runs;
+    std::uint8_t* mapped = nullptr;
+    std::size_t mapped_size = 0;
 
-    bool ensure_corner_buffer() {
-        if (corner_buffer)
-            return corner_mapped != nullptr;
-        VkBufferCreateInfo bci{};
-        bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bci.size = static_cast<VkDeviceSize>(kPages) * kCornerWidth * kCornerHeight * 4;
-        bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        if (vkCreateBuffer(device, &bci, nullptr, &corner_buffer) != VK_SUCCESS)
-            return false;
-        VkMemoryRequirements req{};
-        vkGetBufferMemoryRequirements(device, corner_buffer, &req);
-        VkPhysicalDeviceMemoryProperties mp{};
-        vkGetPhysicalDeviceMemoryProperties(physical, &mp);
-        const VkMemoryPropertyFlags want = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        std::uint32_t type = 0;
-        while (type < mp.memoryTypeCount &&
-               (!(req.memoryTypeBits >> type & 1u) || (mp.memoryTypes[type].propertyFlags & want) != want))
-            ++type;
-        VkMemoryAllocateInfo mai{};
-        mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        mai.allocationSize = req.size;
-        mai.memoryTypeIndex = type;
-        void* p = nullptr;
-        if (type >= mp.memoryTypeCount || vkAllocateMemory(device, &mai, nullptr, &corner_memory) != VK_SUCCESS ||
-            vkBindBufferMemory(device, corner_buffer, corner_memory, 0) != VK_SUCCESS ||
-            vkMapMemory(device, corner_memory, 0, VK_WHOLE_SIZE, 0, &p) != VK_SUCCESS)
-            return false;
-        corner_mapped = static_cast<std::uint8_t*>(p);
-        return true;
+    void draw_corner(std::uint32_t page) {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!mapped)
+            return;
+        std::uint8_t* start = mapped + static_cast<std::size_t>(page) * page_bytes;
+        for (const CornerRun& run : corner_runs)
+            std::memcpy(start + run.offset, &corner_pixels[run.source], run.count * sizeof(std::uint32_t));
     }
 
     void run() {
@@ -113,6 +94,7 @@ struct Fb0Presenter::State {
                 queued.pop_front();
             }
             vkWaitForFences(device, 1, &f.fence, VK_TRUE, UINT64_MAX);
+            draw_corner(f.page);
             pan(f.page);
             {
                 std::lock_guard<std::mutex> lock(mutex);
@@ -150,7 +132,6 @@ std::unique_ptr<Fb0Presenter> Fb0Presenter::create(Context& ctx, std::string& er
     p->s_ = std::make_unique<State>();
     State& s = *p->s_;
     s.device = ctx.device();
-    s.physical = ctx.physical_device();
     s.fd = fd;
     fb_fix_screeninfo fix{};
     if (ioctl(fd, FBIOGET_VSCREENINFO, &s.as_found) || ioctl(fd, FBIOGET_FSCREENINFO, &fix)) {
@@ -168,6 +149,13 @@ std::unique_ptr<Fb0Presenter> Fb0Presenter::create(Context& ctx, std::string& er
     if (s.line < v.xres * 4 || size > fix.smem_len || v.yres_virtual < v.yres * (kFirstPage + kPages)) {
         error = "fb0 has too few pages";
         return nullptr;
+    }
+    void* map = mmap(nullptr, fix.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (map != MAP_FAILED) {
+        s.mapped = static_cast<std::uint8_t*>(map);
+        s.mapped_size = fix.smem_len;
+    } else {
+        std::fprintf(stderr, "window: fb0 not mapped (%s): no frame counter\n", std::strerror(errno));
     }
     FbDmabuf ex{};
     if (ioctl(fd, kFbGetDmabuf, &ex)) {
@@ -294,10 +282,8 @@ Fb0Presenter::~Fb0Presenter() {
     for (VkImage im : s_->page_image)
         if (im)
             vkDestroyImage(s_->device, im, nullptr);
-    if (s_->corner_buffer)
-        vkDestroyBuffer(s_->device, s_->corner_buffer, nullptr);
-    if (s_->corner_memory)
-        vkFreeMemory(s_->device, s_->corner_memory, nullptr);
+    if (s_->mapped)
+        munmap(s_->mapped, s_->mapped_size);
     if (s_->buffer)
         vkDestroyBuffer(s_->device, s_->buffer, nullptr);
     if (s_->memory)
@@ -357,33 +343,6 @@ void Fb0Presenter::record_blit(VkCommandBuffer cmd, VkImage image, VkExtent2D si
     vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, s.page_image[i],
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, filter);
     s.page_used[i] = true;
-    // The corner (set_corner) over the frame: this page's copy of it into the page's bottom left
-    std::uint32_t cw = 0, ch = 0;
-    {
-        std::lock_guard<std::mutex> lock(s.mutex);
-        if (!s.corner.empty() && s.corner_w <= extent_.width && s.corner_h <= extent_.height &&
-            s.ensure_corner_buffer()) {
-            cw = s.corner_w;
-            ch = s.corner_h;
-            std::memcpy(s.corner_mapped + static_cast<std::size_t>(i) * kCornerWidth * kCornerHeight * 4,
-                        s.corner.data(), static_cast<std::size_t>(cw) * ch * 4);
-        }
-    }
-    if (cw && ch) {
-        VkMemoryBarrier after_blit{};
-        after_blit.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        after_blit.srcAccessMask = after_blit.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &after_blit,
-                             0, nullptr, 0, nullptr);
-        VkBufferImageCopy copy{};
-        copy.bufferOffset = static_cast<VkDeviceSize>(i) * kCornerWidth * kCornerHeight * 4;
-        copy.bufferRowLength = cw;
-        copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        copy.imageOffset = {0, static_cast<std::int32_t>(extent_.height - ch), 0};
-        copy.imageExtent = {cw, ch, 1};
-        vkCmdCopyBufferToImage(cmd, s.corner_buffer, s.page_image[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-                               &copy);
-    }
     // In memory when the frame's fence signals: the display engine reads it, not the GPU.
     VkMemoryBarrier mb{};
     mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -426,14 +385,29 @@ void Fb0Presenter::record_copy(VkCommandBuffer cmd, VkImage image, std::uint32_t
 }
 
 void Fb0Presenter::set_corner(const std::uint32_t* bgra, std::uint32_t width, std::uint32_t height) {
-    std::lock_guard<std::mutex> lock(s_->mutex);
-    if (!bgra || !width || !height || width > kCornerWidth || height > kCornerHeight) {
-        s_->corner.clear();
-        return;
+    std::vector<std::uint32_t> pixels;
+    std::vector<State::CornerRun> runs;
+    if (bgra && width && height && width <= extent_.width && height <= extent_.height) {
+        for (std::uint32_t y = 0; y < height; ++y) {
+            const std::uint32_t* row = bgra + static_cast<std::size_t>(y) * width;
+            for (std::uint32_t x = 0; x < width;) {
+                if ((row[x] & 0xFFFFFFu) == kCornerBox) {
+                    ++x;
+                    continue;
+                }
+                std::uint32_t end = x;
+                while (end < width && (row[end] & 0xFFFFFFu) != kCornerBox)
+                    ++end;
+                runs.push_back({static_cast<std::size_t>(extent_.height - height + y) * s_->line + std::size_t{x} * 4,
+                                static_cast<std::uint32_t>(pixels.size()), end - x});
+                pixels.insert(pixels.end(), row + x, row + end);
+                x = end;
+            }
+        }
     }
-    s_->corner.assign(bgra, bgra + static_cast<std::size_t>(width) * height);
-    s_->corner_w = width;
-    s_->corner_h = height;
+    std::lock_guard<std::mutex> lock(s_->mutex);
+    s_->corner_pixels = std::move(pixels);
+    s_->corner_runs = std::move(runs);
 }
 
 void Fb0Presenter::queue(std::uint32_t slot, VkFence fence, std::uint32_t page) {
