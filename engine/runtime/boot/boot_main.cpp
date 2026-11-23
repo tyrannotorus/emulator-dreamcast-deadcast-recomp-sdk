@@ -2078,6 +2078,8 @@ int main(int argc, char** argv) {
             hc.set_corner = [lp](const std::uint32_t* bgra, unsigned w, unsigned h) {
                 lp->window.set_corner(bgra, w, h);
             };
+            if (lp->window.leds_supported())
+                hc.set_leds = [lp](unsigned lit, unsigned percent) { lp->window.set_leds(lit, percent); };
             hc.render_size = [lp](unsigned sc, unsigned& w, unsigned& h) {
                 std::uint32_t tw = 0, th = 0;
                 lp->target_size(sc, lp->render_aspect_, tw, th);

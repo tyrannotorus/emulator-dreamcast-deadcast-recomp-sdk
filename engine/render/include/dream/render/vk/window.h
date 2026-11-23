@@ -15,6 +15,8 @@
 #include "dream/render/vk/context.h"
 #include "dream/render/vk/dxgi_present.h"
 #include "dream/render/vk/fb0_present.h"
+#include "dream/render/vk/frame_probe.h"
+#include "dream/render/vk/led_light.h"
 #include "dream/render/vk/resources.h"
 
 #include <vulkan/vulkan.h>
@@ -99,6 +101,11 @@ public:
     bool blits() const noexcept;
     void blit_frame(VkCommandBuffer cmd, VkImage src, VkExtent2D size, bool smooth);
     bool recreate_swapchain();
+    // NextUI builds: the handheld's LEDs, pulsing with the game's vibration (led_light.h): `lit` a
+    // LedLight::Lit (0 as NextUI had them), at `percent` brightness. leds_supported() is false in other
+    // builds and where the device has no LED driver or cannot probe the picture; set_leds then does nothing.
+    bool leds_supported() const noexcept;
+    void set_leds(unsigned lit, unsigned percent) noexcept;
 
     // True while the user has not closed the window; pumps the event queue and refreshes the
     // control state below.
@@ -286,6 +293,9 @@ private:
     int rumble_found_uv_ = -1;  // the voltage before the run, put back at its end
     std::chrono::steady_clock::time_point rumble_until_{};
     void rumble_off() noexcept;
+    // The LEDs (NextUI builds): lit from the picture's colour, which probe_ reads off each finished frame.
+    LedLight leds_;
+    FrameProbe probe_;
     Binding capture_{};
 };
 

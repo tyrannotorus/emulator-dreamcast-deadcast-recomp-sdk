@@ -11,6 +11,7 @@
 #include "dreamcomp/port.h"
 #include "dreamcomp/settings.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -58,6 +59,7 @@ public:
         if (!ready_) {
             ready_ = true;
             controlsAtStart();
+            ledsAtStart();
             say("ready");
         }
         commands();
@@ -127,9 +129,11 @@ private:
             corner(nullptr);
             if (sys_ != nullptr && sys_->rumble)
                 sys_->rumble(0, 0.0f, 0);
+            leds();
         } else if (line == "resume") {
             paused_ = false;
             vblanks_ = 0;  // the time held is not the game's
+            leds();
         } else if (line == "quit") {
             quit();
         } else if (line.rfind("set ", 0) == 0) {
@@ -150,7 +154,10 @@ private:
             set_render_scale(value == "panel" ? kScalePanel : std::atoi(value.c_str()));
         else if (key == "rumble" && hc.set_rumble)
             hc.set_rumble(static_cast<float>(std::atoi(value.c_str())) / 100.0f);
-        else if (key == "fps")
+        else if (key == "leds" || key == "led_brightness") {
+            ledSetting(key, value);
+            leds();
+        } else if (key == "fps")
             fps_ = value == "on";
         else if (key == "label")
             readCells(value);
@@ -163,6 +170,30 @@ private:
         auto& hc = dream::host::host_controls();
         if (!hc.set_pad_control || !hc.set_pad_control(key, inputs))
             std::printf("host link: control %s cannot be on \"%s\": it stays as it was\n", key.c_str(), inputs.c_str());
+    }
+
+    // The LEDs: `leds` (off, back or all: pulsing with the game's vibration in the picture's colour) and
+    // `led_brightness` (10-100), the game's while it plays and NextUI's again while it is paused, the
+    // host's menu over it. A module that declares no `leds` leaves them alone.
+    void ledSetting(const std::string& key, const std::string& value) {
+        if (key == "leds")
+            ledLit_ = value == "off" ? 1u : value == "back" ? 2u : value == "all" ? 3u : 0u;
+        else
+            ledPercent_ = static_cast<unsigned>(std::clamp(std::atoi(value.c_str()), 10, 100));
+    }
+
+    void leds() const {
+        if (auto& hc = dream::host::host_controls(); hc.set_leds)
+            hc.set_leds(paused_ ? 0u : ledLit_, ledPercent_);
+    }
+
+    void ledsAtStart() {
+        for (const char* key : {"leds", "led_brightness"})
+            if (const std::string value = settings().get(key); !value.empty())
+                ledSetting(key, value);
+        if (ledLit_ != 0 && !dream::host::host_controls().set_leds)
+            std::printf("host link: this device has no LEDs to light\n");
+        leds();
     }
 
     static void controlsAtStart() {
@@ -283,6 +314,7 @@ private:
     int stable_ = 0;
     std::uint64_t presentedLast_ = 0;
     bool fps_ = false;
+    unsigned ledLit_ = 0, ledPercent_ = 100;  // the LEDs' settings (ledSetting)
     bool cornerShown_ = false;
     std::map<char, Cell> cells_;
     std::uint32_t cellPad_ = 0;
