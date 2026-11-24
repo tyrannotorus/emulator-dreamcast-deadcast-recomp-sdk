@@ -2078,8 +2078,20 @@ int main(int argc, char** argv) {
             hc.set_corner = [lp](const std::uint32_t* bgra, unsigned w, unsigned h) {
                 lp->window.set_corner(bgra, w, h);
             };
-            if (lp->window.leds_supported())
-                hc.set_leds = [lp](unsigned lit, unsigned percent) { lp->window.set_leds(lit, percent); };
+            // The handheld's LEDs and the frame samples, for a port's own use (System::leds, frame_sample).
+            if (dream::render::vk::Leds* leds = lp->window.leds()) {
+                sys.leds = [leds](std::uint32_t rgb, bool back_only, unsigned percent) {
+                    return leds->show(rgb, back_only, percent);
+                };
+                sys.leds_release = [leds] { leds->release(); };
+                hc.hold_leds = [leds](bool held) { leds->hold(held); };
+            }
+            if (lp->window.can_sample_frames()) {
+                sys.sample_frames = [lp](bool on) { lp->window.sample_frames(on); };
+                sys.frame_sample = [lp](std::vector<std::uint8_t>& rgba, unsigned& w, unsigned& h) {
+                    return lp->window.frame_sample(rgba, w, h);
+                };
+            }
             hc.render_size = [lp](unsigned sc, unsigned& w, unsigned& h) {
                 std::uint32_t tw = 0, th = 0;
                 lp->target_size(sc, lp->render_aspect_, tw, th);
@@ -2457,7 +2469,10 @@ int main(int argc, char** argv) {
     }
 #ifdef DREAM_WITH_RENDERER
     // Vulkan objects are destroyed now rather than at scope exit, while everything they were
-    // created from is still alive.
+    // created from is still alive. What the port was given of the window goes first.
+    sys.leds = nullptr, sys.leds_release = nullptr;
+    sys.sample_frames = nullptr, sys.frame_sample = nullptr;
+    dream::host::host_controls().hold_leds = nullptr;
     live.reset();
 #endif
     if (!wav.empty()) {

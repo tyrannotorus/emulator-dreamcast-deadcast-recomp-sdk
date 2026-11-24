@@ -1,4 +1,5 @@
-// A sample of the picture's pixels, as cheaply as the GPU gives it, for the LEDs' colour (led_light.h).
+// A sample of the picture's pixels, as cheaply as the GPU gives it, for a port that reads the picture
+// (dream::System::frame_sample).
 //
 // The finished frame is already in TRANSFER_SRC_OPTIMAL when the window copies it into fb0, so the probe
 // reuses it: one NEAREST blit takes every 8th pixel of every 8th row (128x96 from 1024x768) into a small

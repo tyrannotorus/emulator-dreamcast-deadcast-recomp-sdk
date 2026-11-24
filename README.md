@@ -46,9 +46,13 @@ setting = scale | Resolution | 1=640x480, panel=1024x768 | panel
 
 Deadcast shows them in Options, with Core on the module, keeps the values in the module's own `recomp-data/<id>/settings.cfg`, and hands every value to the module as it starts, as
 `--set <key>=<value>`, a port layer setting (`dreamcomp::settings()`). The port layer applies `scale` and `rumble` (0-100)
-itself, live, and `leds` (`off`, `back` or `all`) and `led_brightness` (10-100) where the device has LEDs: they
-pulse with the game's vibration in the picture's colour, `back` leaving the Brick's F1 and F2 off. A module that
-declares no `leds` leaves the LEDs as NextUI has them. **Show FPS** is always the first row there, undeclared.
+itself, live; a module's own settings it applies itself, hearing of each change while the game runs through
+`PortInfo::on_setting`. **Show FPS** is always the first row there, undeclared.
+
+A module that does something of its own with the handheld has the device through `dream::System`: `leds` and
+`leds_release` light the LEDs (on every one, or on the back ones only), given back to NextUI while the host's menu is
+up and when the run ends; `sample_frames` and `frame_sample` give it a small sample of each finished frame's pixels.
+Where the device has neither, they are empty.
 
 ### Buttons
 

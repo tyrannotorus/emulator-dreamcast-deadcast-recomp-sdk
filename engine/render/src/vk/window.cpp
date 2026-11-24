@@ -806,8 +806,10 @@ bool Window::blits() const noexcept {
 }
 
 void Window::blit_frame(VkCommandBuffer, VkImage, VkExtent2D, bool) {}
-bool Window::leds_supported() const noexcept { return false; }
-void Window::set_leds(unsigned, unsigned) noexcept {}
+Leds* Window::leds() noexcept { return nullptr; }
+bool Window::can_sample_frames() const noexcept { return false; }
+void Window::sample_frames(bool) noexcept {}
+bool Window::frame_sample(std::vector<std::uint8_t>&, unsigned&, unsigned&) { return false; }
 
 bool Window::end_frame(std::uint32_t image_index) {
     VkCommandBuffer cmd = cmds_[frame_];

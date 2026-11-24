@@ -43,7 +43,7 @@ bool FrameProbe::create(const Context& ctx) {
     vkGetPhysicalDeviceFormatProperties(ctx.physical_device(), kFormat, &fp);
     constexpr VkFormatFeatureFlags kNeeds = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
     if ((fp.optimalTilingFeatures & kNeeds) != kNeeds) {
-        std::fprintf(stderr, "frame probe: the device cannot blit RGBA8 images: no colour for the LEDs\n");
+        std::fprintf(stderr, "frame probe: the device cannot blit RGBA8 images: no frame samples\n");
         return false;
     }
     device_ = ctx.device();

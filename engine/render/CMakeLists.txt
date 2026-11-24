@@ -92,7 +92,7 @@ add_library(dream_render_vk STATIC
   ${_window_src}
   src/vk/fb0_present.cpp
   src/vk/frame_probe.cpp
-  src/vk/led_light.cpp
+  src/vk/leds.cpp
   src/vk/resources.cpp
   src/vk/renderer.cpp
   src/vk/texture_cache.cpp

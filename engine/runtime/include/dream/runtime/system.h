@@ -103,6 +103,20 @@ public:
     // Set by the launcher (a no-op headless); the launcher's vibration packs report through it, and
     // a port that implements the game's vibration library natively calls it directly.
     std::function<void(unsigned port, float strength, unsigned ms)> rumble;
+    // The handheld's LEDs, for a port that lights them (NextUI builds where the device has them; empty
+    // elsewhere): leds(rgb, back_only, percent) shows 0xRRGGBB on every LED, or on the back ones only (the
+    // Brick's F1 and F2 off), at 10-100% brightness, taking them over at the first call. False when nothing is
+    // shown: while the host's menu is over the game (they are NextUI's then; the last call's colour comes back
+    // after it). leds_release gives them back as NextUI had them, until the next call; the launcher gives them
+    // back itself when the run ends. Any thread (render/vk/leds.h).
+    std::function<bool(std::uint32_t rgb, bool back_only, unsigned percent)> leds;
+    std::function<void()> leds_release;
+    // A small sample of the finished frames' pixels, for a port that reads the picture (NextUI builds; empty
+    // elsewhere): recorded while sample_frames(true), every 8th pixel of every 8th row
+    // (render/vk/frame_probe.h). frame_sample gives the newest since its last call, `width` x `height` RGBA8
+    // pixels (red first in memory), or false. Any thread.
+    std::function<void(bool on)> sample_frames;
+    std::function<bool(std::vector<std::uint8_t>& rgba, unsigned& width, unsigned& height)> frame_sample;
     // Set by a port that serves the disc itself: the BIOS stand-in then refuses every GD-ROM
     // call, counted as gdrom.refused in the run report, so none can pass unnoticed.
     bool no_gdrom = false;

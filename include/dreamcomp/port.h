@@ -71,6 +71,9 @@ struct PortInfo {
     void (*on_vblank)(dream::System& sys, Settings& settings) = nullptr;
     // Once, before the first guest instruction.
     void (*on_start)(dream::System& sys, Settings& settings) = nullptr;
+    // A setting the host changed while the game runs (Deadcast's Options): `key`, its new value already in
+    // `settings`. Every key comes here, the port layer's own (scale, rumble...) too. On the guest thread.
+    void (*on_setting)(dream::System& sys, Settings& settings, const char* key) = nullptr;
     // Once, after the guest stopped and before the launcher's report, while the System is still
     // alive (unlike in an atexit handler): for a port's own counts.
     void (*on_stop)(dream::System& sys, Settings& settings) = nullptr;

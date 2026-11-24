@@ -147,8 +147,7 @@ bool Window::create(const char* title, int width, int height) {
         vkCreateFence(ctx_.device(), &fci, nullptr, &fences_[i]);
     }
     fb0_pages_.assign(kFramesInFlight, 0);
-    if (leds_.available())
-        probe_.create(ctx_);
+    probe_.create(ctx_);
 
     input_fd_ = open_pad();
     if (input_fd_ < 0)
@@ -363,8 +362,6 @@ bool Window::poll() {
     // The motor's time up, or the game no longer getting the pad (a menu over it, the run ending).
     if (rumble_on_ && (!running_ || game_input_blocked_ || std::chrono::steady_clock::now() >= rumble_until_))
         rumble_off();
-    if (!running_ || game_input_blocked_)
-        leds_.rumble_end();
     // The game's pad: each control held while any of the inputs driving it is.
     const auto in = [](bool down, std::uint32_t bit) { return down ? bit : 0u; };
     const std::uint32_t held =
@@ -432,11 +429,6 @@ float Window::pad_value(unsigned player, PadControl c) const noexcept {
 void Window::rumble(unsigned player, float strength, unsigned ms) noexcept {
     if (player != 0)
         return;
-    // The LEDs pulse with what the game asks of the motor, whatever the player scaled it to: Off too.
-    if (strength > 0.0f && ms > 0)
-        leds_.rumble_begin(ms);
-    else
-        leds_.rumble_end();
     const float s = std::clamp(strength * rumble_scale, 0.0f, 1.0f);
     if (s <= 0.0f || ms == 0) {
         rumble_off();
@@ -480,8 +472,11 @@ bool Window::begin_frame(std::uint32_t& image_index, VkCommandBuffer& cmd) {
     cmd = cmds_[frame_];
     // The sample this slot's probe recorded, its frame finished now that the fence has passed.
     const std::uint8_t* sample = nullptr;
-    if (unsigned w = 0, h = 0; probe_.read(frame_, sample, w, h))
-        leds_.submit_pixels(sample, w, h);
+    if (unsigned w = 0, h = 0; probe_.read(frame_, sample, w, h)) {
+        std::lock_guard<std::mutex> lock(sample_mutex_);
+        sample_.assign(sample, sample + static_cast<std::size_t>(w) * h * 4);
+        sample_w_ = w, sample_h_ = h, sample_new_ = true;
+    }
     vkResetCommandBuffer(cmd, 0);
     VkCommandBufferBeginInfo bi{};
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -499,7 +494,7 @@ bool Window::blits() const noexcept {
 void Window::blit_frame(VkCommandBuffer cmd, VkImage src, VkExtent2D size, bool smooth) {
     fb0_->record_blit(cmd, src, size, smooth ? VK_FILTER_LINEAR : VK_FILTER_NEAREST, fb0_pages_[frame_]);
     fb0_blitted_ = true;
-    if (leds_.wants_colour())
+    if (sampling_.load(std::memory_order_relaxed))
         probe_.record(cmd, src, size, frame_);
 }
 
@@ -523,7 +518,7 @@ bool Window::end_frame(std::uint32_t image_index) {
         vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
                              0, nullptr, 0, nullptr, 1, &b);
         fb0_->record_copy(cmd, images_[image_index], fb0_pages_[frame_]);
-        if (leds_.wants_colour())
+        if (sampling_.load(std::memory_order_relaxed))
             probe_.record(cmd, images_[image_index], extent_, frame_);
     }
     fb0_blitted_ = false;
@@ -541,17 +536,31 @@ bool Window::end_frame(std::uint32_t image_index) {
     return true;
 }
 
-bool Window::leds_supported() const noexcept {
-    return leds_.available() && probe_.ready();
+Leds* Window::leds() noexcept {
+    return leds_.available() ? &leds_ : nullptr;
 }
 
-void Window::set_leds(unsigned lit, unsigned percent) noexcept {
-    if (leds_supported())
-        leds_.configure(lit, percent);
+bool Window::can_sample_frames() const noexcept {
+    return probe_.ready();
+}
+
+void Window::sample_frames(bool on) noexcept {
+    sampling_.store(on && probe_.ready(), std::memory_order_relaxed);
+}
+
+bool Window::frame_sample(std::vector<std::uint8_t>& rgba, unsigned& width, unsigned& height) {
+    std::lock_guard<std::mutex> lock(sample_mutex_);
+    if (!sample_new_)
+        return false;
+    rgba.swap(sample_);
+    width = sample_w_, height = sample_h_;
+    sample_new_ = false;
+    return true;
 }
 
 void Window::destroy() {
-    leds_.shutdown();  // the LEDs given back as they were
+    leds_.close();  // the LEDs given back as they were
+    sampling_.store(false, std::memory_order_relaxed);
     probe_.destroy();
     rumble_off();
     if (rumble_uv_ != 0 && rumble_found_uv_ > 0) {

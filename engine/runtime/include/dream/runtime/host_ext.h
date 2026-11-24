@@ -129,10 +129,9 @@ struct HostControls {
     // frames keep their fast path (NextUI builds; elsewhere it does nothing).
     std::function<std::uint64_t()> presented_frames;
     std::function<void(const std::uint32_t*, unsigned, unsigned)> set_corner;
-    // The handheld's LEDs, pulsing with the game's vibration in the picture's colour (NextUI builds, where
-    // the device has them; empty elsewhere): `lit` 0 as NextUI had them, 1 all off, 2 the back ones only,
-    // 3 all of them (render/vk/led_light.h); `percent` the brightness, 10-100.
-    std::function<void(unsigned lit, unsigned percent)> set_leds;
+    // The host's menu over the game: the handheld's LEDs NextUI's while true, the port's again after
+    // (System::leds; NextUI builds where the device has them, empty elsewhere).
+    std::function<void(bool)> hold_leds;
 };
 
 inline HostControls& host_controls() {
