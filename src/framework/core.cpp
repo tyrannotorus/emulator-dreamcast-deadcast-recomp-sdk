@@ -348,10 +348,10 @@ public:
         load_hud_overrides();
 
         if (!has_flag(args, "--disc")) {
-            const std::string disc = g_settings.get("disc");
-            if (!disc.empty()) {
+            const std::string saved = g_settings.get("disc");
+            if (!saved.empty()) {
                 args.push_back("--disc");
-                args.push_back(disc);
+                args.push_back(saved);
             }
         }
         // Played in a window (double-clicked, or `--window`): the player's saved choices. A flag
